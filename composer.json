@@ -2,7 +2,7 @@
     "name": "iggyvolz/pnp",
     "description": "PNP's Not Phar - a PHP project merger",
     "type": "project",
-    "license": "BSD0",
+    "license": "0BSD",
     "autoload": {
         "psr-4": {
             "iggyvolz\\Pnp\\": "src/"

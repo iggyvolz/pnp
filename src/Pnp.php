@@ -18,6 +18,7 @@ class Pnp extends Command
         $this->addOption("vendor", mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_OPTIONAL, description: "Path to /vendor directory(ies) for project");
         $this->addOption("shebang", mode: InputOption::VALUE_REQUIRED, description: "Shebang to add to the application", default: "/usr/bin/env php");
         $this->addOption("compression", "c", mode: InputOption::VALUE_REQUIRED, description: "Compression mode (none, gzip, bzip2, base64)", default: "none");
+        $this->addOption("streamable", "s", mode: InputOption::VALUE_NONE, description: "Use an array rather than __halt_compiler() (ex. for curl|sh)");
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -53,7 +54,7 @@ class Pnp extends Command
         }
         $output = $input->getArgument("output");
         if($output === "-") $output = "php://stdout";
-        self::process($bootstraps, fopen($output, "w"), $input->getOption("shebang"), $classmap, $compression);
+        self::process($bootstraps, fopen($output, "w"), $input->getOption("shebang"), $input->getOption("streamable") ? true : false, $classmap, $compression);
         return self::SUCCESS;
     }
 
@@ -79,7 +80,7 @@ class Pnp extends Command
      * @param Compression $compression
      * @return void
      */
-    public static function process(array $bootstraps, mixed $output, string $shebang = "/usr/bin/env php", array $classmap = [], Compression $compression = Compression::NONE): void
+    public static function process(array $bootstraps, mixed $output, string $shebang = "/usr/bin/env php", bool $streamable = false, array $classmap = [], Compression $compression = Compression::NONE): void
     {
         $data = fopen("php://temp", "rw");
         /**
@@ -104,23 +105,26 @@ class Pnp extends Command
             $bootstrapOffsets["[autoloader]"]= self::write($data, $autoloader, $compression);
         }
         foreach($bootstraps as $filename => $contents) {
-
             $contents ??= file_get_contents($filename);
             if(is_null($contents))  throw new \RuntimeException("$filename does not exist");
             $bootstrapOffsets[$filename] = self::write($data, self::stripInitialTags($contents), $compression);
         }
 
         // Write the body - minify a few elements to save space
+        $minify = fn(string $s): string => str_replace(["\n", "    ", ") {", " = "], ["", "", "){", "="], $s);
         self::write($output, "#!$shebang\n<?php\n");
-        self::write($output, str_replace(["\n","    ",") {"," = "],["","","){","="],<<<PHP
+        fseek($data, 0);
+        $dataStream = $streamable ? var_export("data://text/plain," . stream_get_contents($data), true) : "__FILE__";
+        $streamOffset = $streamable ? "0" : "__COMPILER_HALT_OFFSET__";
+        self::write($output, $minify(<<<PHP
             {$compression->guardCode()}
             function e(\$a,\$b,\$n) {
                 global \$s,\$f,\$e;
                 fseek(\$s,\$f+\$a);
                 \$e({$compression->decompressCode('fread($s,$b)')},\$n);
             }
-            \$f = __COMPILER_HALT_OFFSET__;
-            \$s = fopen(__FILE__, 'r');
+            \$f = $streamOffset;
+            \$s = fopen($dataStream, 'r');
             if(extension_loaded('ffi')) {
                 \$h = FFI::cdef("int zend_eval_string(const char *str, int retval_ptr, const char *string_name);");
                 \$e = function(\$s,\$n){global \$h;\$h->zend_eval_string(\$s,0,\$n);};
@@ -132,9 +136,10 @@ class Pnp extends Command
         foreach($bootstrapOffsets as $name => $offset) {
             self::write($output, "e($offset->start,$offset->length,".var_export($name, true).");");
         }
-        self::write($output, "__halt_compiler();");
-        fseek($data, 0);
-        stream_copy_to_stream($data, $output);
+        if(!$streamable) {
+            self::write($output, "__halt_compiler();");
+            stream_copy_to_stream($data, $output);
+        }
         fclose($data);
         fclose($output);
     }

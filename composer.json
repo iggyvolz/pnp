@@ -1,0 +1,29 @@
+{
+    "name": "iggyvolz/pnp",
+    "description": "PNP's Not Phar - a PHP project merger",
+    "type": "project",
+    "license": "BSD0",
+    "autoload": {
+        "psr-4": {
+            "iggyvolz\\Pnp\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Katie Volz",
+            "email": "iggyvolz@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1 <8.2",
+        "symfony/console": "^6.0"
+    },
+    "suggest": {
+        "ext-zlib": "GZ encoding",
+        "ext-ffi": "Use actual file name instead of 'eval()'d code",
+        "ext-bz2": "BZ2 encoding"
+    },
+    "bin": [
+        "bin/pnp"
+    ]
+}

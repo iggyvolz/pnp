@@ -18,7 +18,7 @@ class Pnp extends Command
         $this->addOption("vendor", mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_OPTIONAL, description: "Path to /vendor directory(ies) for project");
         $this->addOption("shebang", mode: InputOption::VALUE_REQUIRED, description: "Shebang to add to the application", default: "/usr/bin/env php");
         $this->addOption("compression", "c", mode: InputOption::VALUE_REQUIRED, description: "Compression mode (none, gzip, bzip2, base64)", default: "none");
-        $this->addOption("streamable", "s", mode: InputOption::VALUE_NONE, description: "Use an array rather than __halt_compiler() (ex. for curl|sh)");
+        $this->addOption("streamable", "s", mode: InputOption::VALUE_NONE, description: "Use an array rather than __halt_compiler() (ex. for curl|php)");
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -114,7 +114,7 @@ class Pnp extends Command
         $minify = fn(string $s): string => str_replace(["\n", "    ", ") {", " = "], ["", "", "){", "="], $s);
         self::write($output, "#!$shebang\n<?php\n");
         fseek($data, 0);
-        $dataStream = $streamable ? var_export("data://text/plain," . stream_get_contents($data), true) : "__FILE__";
+        $dataStream = $streamable ? var_export("data://text/plain;base64," . base64_encode(stream_get_contents($data)), true) : "__FILE__";
         $streamOffset = $streamable ? "0" : "__COMPILER_HALT_OFFSET__";
         self::write($output, $minify(<<<PHP
             {$compression->guardCode()}

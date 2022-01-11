@@ -10,29 +10,32 @@ RUN mkdir /usr/src/pnp
 WORKDIR /usr/src/pnp
 COPY /composer.json .
 COPY /composer.lock .
+COPY bootstraps bootstraps
 COPY src src
 COPY bin bin
 ENV PATH="/root/.composer/vendor/bin:${PATH}"
-RUN composer install
+RUN composer install -a
 RUN mkdir out
+COPY extra-files.sh .
 
 FROM buildenv AS main-build
-RUN bin/pnp -b bin/pnp --vendor vendor /pnp
+# bin/pnp -b `pwd`/bin/pnp --vendor vendor $BOOTSTRAP_FILES $DATA_FILES --shebang '#!/usr/bin/env php' -b `pwd`/bin/pnpbin/out.php
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM buildenv AS streamable-build
-RUN bin/pnp -b bin/pnp --vendor vendor -s /pnp
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor -s `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM buildenv AS gzip-build
-RUN bin/pnp -b bin/pnp --vendor vendor -c gzip /pnp
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor -c gzip `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM buildenv AS gzip-streamable-build
-RUN bin/pnp -b bin/pnp --vendor vendor -c gzip -s /pnp
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor -s -c gzip `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM buildenv AS bzip-build
-RUN bin/pnp -b bin/pnp --vendor vendor -c bzip /pnp
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor -c bzip `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM buildenv AS bzip-streamable-build
-RUN bin/pnp -b bin/pnp --vendor vendor -c bzip -s /pnp
+RUN bin/pnp -b `pwd`/bin/pnp --vendor vendor -s -c bzip `./extra-files.sh` --shebang '#!/usr/bin/env php' /pnp
 
 FROM scratch
 COPY --from=main-build /pnp /pnp

@@ -1,0 +1,25 @@
+<?php
+(function(){
+    {switch $filter}
+    {case "gzdecode"}
+    if(!extension_loaded('zlib')) die("Zlib extension required\n");
+    {case "bzdecompress"}
+    if(!extension_loaded('bz2')) die("Bz2 extension required\n");
+    {/switch}
+    {if $streamable}
+        $s = fopen('data://text/plain;base64,@@data@@','r');
+    {else}
+        if(__FILE__==="Standard input code") die("Streamable version required\n");
+        $s = fopen(__FILE__,'r');
+    {/if}
+    // Get manifest
+    fseek($s, {if !$streamable}__COMPILER_HALT_OFFSET__ + {/if}{$manifestOffset});
+    $m=json_decode({$filter}(fread($s,{$manifestLength})),true);
+    // Evaluate init script
+    eval({$filter}(stream_get_contents($s)));
+    iggyvolz\Pnp\PnpStream::load(__FILE__,$s,"{$filter}",{if $streamable}0{else}__COMPILER_HALT_OFFSET__{/if},$m);
+})();
+{foreach $bootstraps as $bootstrap}
+    require 'pnp://'.__FILE__.{var_export('/'.$bootstrap,true)|noescape};
+{/foreach}
+{if !$streamable}__halt_compiler();{/if}

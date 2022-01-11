@@ -77,18 +77,12 @@ class Pnp extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $bootstraps = [];
-        $inputBootstraps = $input->getOption("bootstrap");
-        if(empty($inputBootstraps)) {
-            $output->writeln("At least one bootstrap file is required");
-            return self::FAILURE;
-        }
+        $bootstraps = $input->getOption("bootstrap");
         $vendorDirs = $input->getOption("vendor");
         $files = $input->getOption("file") ?? [];
         foreach($vendorDirs as $vendorDir) {
             $files = array_values([...$files, ...(require $vendorDir . "/composer/autoload_classmap.php")]);
             foreach(file_exists($vendorDir . "/composer/autoload_files.php") ? require $vendorDir . "/composer/autoload_files.php" : [] as $file) {
-                $bootstraps[] = $file;
                 $files[] = $file;
             }
             $files[] = "$vendorDir/autoload.php";
@@ -97,8 +91,6 @@ class Pnp extends Command
                 $files[] = $vendorDir . "/composer/$file";
             }
         }
-        // Prepend vendor bootstraps before bootstrap script
-        $bootstraps = [...$bootstraps, ...$inputBootstraps];
         try {
             $filter = match ($input->getOption("compression")) {
                 "none" => self::FILTER_NONE,
